@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 export class AIService {
   constructor(private client: OpenAI, private model: string) {}
-  async searchWeb(query: string) { return this.client.responses.create({ model: this.model, tools: [{ type: 'web_search_preview' } as any], input: query }) }
+  async searchWeb(query: string) { return this.client.responses.create({ model: this.model, tools: [{ type: 'web_search' } as any], input: query }) }
   async generatePost(input: string) { return this.client.responses.create({ model: this.model, input: `Create a concise investor-grade social post. Human approval required.\n${input}` }) }
   async generateCommentReply(input: string) { return this.client.responses.create({ model: this.model, input: `Draft a selective, non-spammy reply to this relevant investment comment. Ask one useful question.\n${input}` }) }
   async summarizeResearch(input: string) { return this.client.responses.create({ model: this.model, input: `Summarize research, preserving sources and separating facts from inference.\n${input}` }) }
