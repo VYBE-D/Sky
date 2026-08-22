@@ -1,0 +1,4 @@
+import { createClient } from '@/lib/supabase/server'
+import { decryptSecret } from '@/lib/crypto'
+import OpenAI from 'openai'
+export async function POST(){try{const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)return Response.json({error:'Unauthorized'},{status:401});const {data:w}=await s.from('workspaces').select('id').eq('owner_id',user.id).limit(1).maybeSingle();const {data:setting}=w?await s.from('settings').select('value').eq('workspace_id',w.id).eq('key','openai').maybeSingle():{data:null};if(!setting?.value?.encryptedKey)return Response.json({ok:false,error:'OpenAI not connected'});const client=new OpenAI({apiKey:decryptSecret(setting.value.encryptedKey)});await client.responses.create({model:setting.value.model||'gpt-5',input:'Reply only with OK.'});return Response.json({ok:true})}catch(e){return Response.json({ok:false,error:'OpenAI connection failed'},{status:400})}}
