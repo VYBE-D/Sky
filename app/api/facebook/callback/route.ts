@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const me = await metaGraph('/me?fields=id,name', token.access_token); const pages = await metaGraph('/me/accounts?fields=id,name,access_token,category,tasks', token.access_token)
   const { data: connection, error } = await supabase.from('facebook_connections').upsert({ workspace_id: workspace.id, provider: 'meta', account_name: me.name, status: 'connected', access_token_encrypted: encryptSecret(token.access_token), token_expires_at: token.expires_in ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null, permissions: pages.data?.map((p: any) => p.tasks ?? []) ?? [], last_sync: new Date().toISOString() }, { onConflict: 'workspace_id' }).select('id').single()
   if (error) return NextResponse.redirect(new URL('/settings/integrations?facebook=save_error', request.url))
-  for (const page of pages.data ?? []) await supabase.from('facebook_pages').upsert({ workspace_id: workspace.id, connection_id: connection.id, page_id: page.id, name: page.name, category: page.category }, { onConflict: 'workspace_id,page_id' })
+  for (const page of pages.data ?? []) await supabase.from('facebook_pages').upsert({ workspace_id: workspace.id, connection_id: connection.id, page_id: page.id, name: page.name, category: page.category, page_access_token_encrypted: encryptSecret(page.access_token) }, { onConflict: 'workspace_id,page_id' })
   await supabase.from('settings').delete().eq('workspace_id', workspace.id).eq('key', 'meta_oauth_state')
   return NextResponse.redirect(new URL('/settings/integrations?facebook=connected', request.url))
 }
