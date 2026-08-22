@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentWorkspace } from '@/lib/workspace'
+import { decryptSecret } from '@/lib/crypto'
 import OpenAI from 'openai'
 import { AIService } from '@/lib/ai'
 
@@ -12,12 +13,12 @@ export async function POST() {
     supabase.from('tasks').select('*').eq('workspace_id', workspace.id).neq('status', 'completed').order('due_at', { ascending: true }).limit(10),
     supabase.from('research_items').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending: false }).limit(10),
   ])
-  const { data: key } = await supabase.from('settings').select('value').eq('workspace_id', workspace.id).eq('key', 'openai_api_key').maybeSingle()
-  if (!key?.value) return NextResponse.json({ error: 'OpenAI not connected' }, { status: 400 })
-  const ai = new AIService(new OpenAI({ apiKey: String(key.value) }), 'gpt-5.6')
+  const { data: setting } = await supabase.from('settings').select('value').eq('workspace_id', workspace.id).eq('key', 'openai').maybeSingle()
+  if (!setting?.value?.encryptedKey) return NextResponse.json({ error: 'OpenAI not connected' }, { status: 400 })
+  const ai = new AIService(new OpenAI({ apiKey: decryptSecret(setting.value.encryptedKey) }), setting.value.model ?? process.env.OPENAI_MODEL ?? 'gpt-5.6')
   const result = await ai.generateDailyBriefing(JSON.stringify({ opportunities, approvals, tasks, research }))
   const briefing = result.output_text
   await supabase.from('notifications').insert({ workspace_id: workspace.id, title: 'Daily briefing ready', body: briefing, type: 'daily_briefing' })
-  await supabase.from('activity_logs').insert({ workspace_id: workspace.id, actor_type: 'ai', action: 'generate_daily_briefing', result: { briefing } })
+  await supabase.from('activity_logs').insert({ workspace_id: workspace.id, actor_type: 'AI', action: 'Generate daily briefing', result: { briefing } })
   return NextResponse.json({ briefing })
 }
